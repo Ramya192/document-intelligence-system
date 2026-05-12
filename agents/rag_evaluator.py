@@ -172,15 +172,14 @@ class RAGASEvaluator:
     def __init__(self):
         from ragas import evaluate
         from ragas.metrics import (
-            context_relevancy,
-            faithfulness,
-            answer_relevancy,
+            ContextRelevancy,
+            Faithfulness,
+            AnswerRelevancy,
         )
         from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
         self._evaluate = evaluate
-        self._metrics = [context_relevancy, faithfulness, answer_relevancy]
-
+        self._metrics = [ContextRelevancy(), Faithfulness(), AnswerRelevancy()]
         # RAGAS uses langchain LLM and embeddings under the hood
         self._llm = ChatOpenAI(model=Settings.OPENAI_MODEL)
         self._embeddings = OpenAIEmbeddings(model=Settings.EMBEDDING_MODEL)
@@ -213,7 +212,7 @@ class RAGASEvaluator:
                 embeddings=self._embeddings,
             )
             df = result.to_pandas()
-            ctx_rel = float(df["context_relevancy"].iloc[0])
+            tx_rel = float(df["context_relevancy"].iloc[0])
             faith = float(df["faithfulness"].iloc[0])
             ans_rel = float(df["answer_relevancy"].iloc[0])
         except Exception as e:

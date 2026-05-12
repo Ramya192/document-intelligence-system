@@ -23,3 +23,4 @@ qdrant-client
 ragas
 datasets
 langchain-chroma
+ragas==0.2.6
