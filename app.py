@@ -591,7 +591,7 @@ with col_right:
                 '<span class="sec-label" style="margin-top:0.5rem;">05 · RAG Evaluation</span>',
                 unsafe_allow_html=True,
             )
-            ctx = evaluation.get("context_relevancy", 0)
+            ctx = evaluation.get("context_precision", 0)
             faith = evaluation.get("faithfulness", 0)
             ans = evaluation.get("answer_relevancy", 0)
             evaluator = evaluation.get("evaluator", "—")
@@ -599,7 +599,7 @@ with col_right:
             st.markdown(
                 f"""
             <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:0.6rem;">
-                <div class="metric"><div class="metric-label">Context Relevancy</div><div class="metric-value" style="color:{score_color(ctx)}">{ctx:.2f}</div></div>
+                <div class="metric"><div class="metric-label">Context Precision</div><div class="metric-value" style="color:{score_color(ctx)}">{ctx:.2f}</div></div>
                 <div class="metric"><div class="metric-label">Faithfulness</div><div class="metric-value" style="color:{score_color(faith)}">{faith:.2f}</div></div>
                 <div class="metric"><div class="metric-label">Answer Relevancy</div><div class="metric-value" style="color:{score_color(ans)}">{ans:.2f}</div></div>
             </div>

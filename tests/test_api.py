@@ -216,7 +216,7 @@ class TestAnalyze:
         evaluation = analyze_response.get("evaluation")
         if evaluation is not None:
             for key in [
-                "context_relevancy",
+                "context_precision",
                 "faithfulness",
                 "answer_relevancy",
                 "evaluator",
@@ -227,7 +227,7 @@ class TestAnalyze:
     def test_analyze_evaluation_scores_in_range(self, analyze_response):
         evaluation = analyze_response.get("evaluation")
         if evaluation is not None:
-            for metric in ["context_relevancy", "faithfulness", "answer_relevancy"]:
+            for metric in ["context_precision", "faithfulness", "answer_relevancy"]:
                 score = evaluation[metric]
                 assert 0.0 <= score <= 1.0, f"{metric} out of range: {score}"
 

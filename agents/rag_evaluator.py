@@ -6,7 +6,7 @@ Auto-switches between:
   - RAGASEvaluator      : OpenAI (production) — RAGAS library
 
 Metrics implemented:
-  - Context Relevancy   : cosine(query_embedding, chunk_embeddings) mean
+  - Context Precision   : cosine(query_embedding, chunk_embeddings) mean
   - Faithfulness        : LLM-as-judge — is every claim grounded in context?
   - Answer Relevancy    : cosine(query_embedding, answer_embedding)
 """
@@ -24,13 +24,13 @@ logger = logging.getLogger(__name__)
 class EvaluationResult:
     def __init__(
         self,
-        context_relevancy: float,
+        context_precision: float,
         faithfulness: float,
         answer_relevancy: float,
         evaluator: str,
         latency_ms: int,
     ):
-        self.context_relevancy = round(context_relevancy, 3)
+        self.context_precision = round(context_precision, 3)
         self.faithfulness = round(faithfulness, 3)
         self.answer_relevancy = round(answer_relevancy, 3)
         self.evaluator = evaluator
@@ -38,7 +38,7 @@ class EvaluationResult:
 
     def to_dict(self) -> dict:
         return {
-            "context_relevancy": self.context_relevancy,
+            "context_precision": self.context_precision,
             "faithfulness": self.faithfulness,
             "answer_relevancy": self.answer_relevancy,
             "evaluator": self.evaluator,
@@ -53,7 +53,7 @@ class CustomRAGEvaluator:
     """
     Three metrics using sentence-transformers + Ollama LLM-as-judge.
 
-    Context Relevancy  : mean cosine similarity between query and each chunk
+    Context Precision  : mean cosine similarity between query and each chunk
     Faithfulness       : LLM prompt — does answer stay within the context?
     Answer Relevancy   : cosine similarity between query and answer
     """
@@ -79,7 +79,7 @@ class CustomRAGEvaluator:
         return dot / (norm_a * norm_b)
 
     # ── 1. Context Relevancy ─────────────────────────────────────────────────
-    def _context_relevancy(self, query: str, chunks: list[dict]) -> float:
+    def _context_precision(self, query: str, chunks: list[dict]) -> float:
         if not chunks:
             return 0.0
         texts = [c["text"] for c in chunks if c.get("text")]
@@ -145,14 +145,14 @@ Respond ONLY with a JSON object, no other text:
     ) -> EvaluationResult:
         start = time.time()
 
-        ctx_rel = self._context_relevancy(query, chunks)
+        ctx_rel = self._context_precision(query, chunks)
         faith = self._faithfulness(answer, chunks)
         ans_rel = self._answer_relevancy(query, answer)
 
         latency_ms = int((time.time() - start) * 1000)
 
         return EvaluationResult(
-            context_relevancy=ctx_rel,
+            context_precision=ctx_rel,
             faithfulness=faith,
             answer_relevancy=ans_rel,
             evaluator="custom-ollama",
@@ -166,20 +166,20 @@ Respond ONLY with a JSON object, no other text:
 class RAGASEvaluator:
     """
     Uses RAGAS library with OpenAI backend.
-    Metrics: context_relevancy, faithfulness, answer_relevancy
+    Metrics: context_precision, faithfulness, answer_relevancy
     """
 
     def __init__(self):
         from ragas import evaluate
         from ragas.metrics import (
-            ContextRelevancy,
-            Faithfulness,
-            AnswerRelevancy,
+            context_precision,
+            faithfulness,
+            answer_relevancy,
         )
         from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
         self._evaluate = evaluate
-        self._metrics = [ContextRelevancy(), Faithfulness(), AnswerRelevancy()]
+        self._metrics = [context_precision, faithfulness, answer_relevancy]
         # RAGAS uses langchain LLM and embeddings under the hood
         self._llm = ChatOpenAI(model=Settings.OPENAI_MODEL)
         self._embeddings = OpenAIEmbeddings(model=Settings.EMBEDDING_MODEL)
@@ -212,7 +212,7 @@ class RAGASEvaluator:
                 embeddings=self._embeddings,
             )
             df = result.to_pandas()
-            tx_rel = float(df["context_relevancy"].iloc[0])
+            ctx_rel = float(df["context_precision"].iloc[0])
             faith = float(df["faithfulness"].iloc[0])
             ans_rel = float(df["answer_relevancy"].iloc[0])
         except Exception as e:
@@ -222,7 +222,7 @@ class RAGASEvaluator:
         latency_ms = int((time.time() - start) * 1000)
 
         return EvaluationResult(
-            context_relevancy=ctx_rel,
+            context_precision=ctx_rel,
             faithfulness=faith,
             answer_relevancy=ans_rel,
             evaluator="ragas-openai",
