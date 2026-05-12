@@ -1,3 +1,12 @@
+---
+title: FinLens API
+emoji: 🏦
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+---
+
 # FinLens — Document Intelligence System
 
 > **Project B · Agentic AI Portfolio · Ramya Priyanka A**
