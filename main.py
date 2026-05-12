@@ -17,6 +17,7 @@ from agents.retriever_agent import RetrieverAgent
 from agents.reasoning_agent import ReasoningAgent
 from agents.validator_agent import ValidatorAgent
 from agents.rag_evaluator import get_evaluator
+from settings import Settings
 
 logger = logging.getLogger(__name__)
 
@@ -118,60 +119,42 @@ async def analyze(request: AnalyzeRequest):
 
 @app.post("/ingest/stream")
 async def ingest_stream(file: UploadFile = File(...)):
-    """
-    Streams ingest pipeline progress as SSE events.
-
-    Steps:
-      1. PDF Extraction
-      2. Text Chunking
-      3. Embedding
-      4. Storing in ChromaDB
-    """
     get_agents()
-
-    # Read file content before entering the generator
     file_content = await file.read()
     original_stem = Path(file.filename).stem
 
     async def generate() -> AsyncGenerator[str, None]:
         pipeline_start = time.time()
 
-        # ── Step 1: PDF Extraction ────────────────────────────────────────
+        # Step 1: PDF Extraction
         yield sse_event("PDF Extraction", "running")
-        await asyncio.sleep(0)  # yield control to event loop
-
+        await asyncio.sleep(0)
         t0 = time.time()
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             tmp.write(file_content)
             tmp_path = tmp.name
-
-        # Extract text only (no chunking/embedding yet)
         import pdfplumber
 
         full_text = ""
         with pdfplumber.open(tmp_path) as pdf:
             for page in pdf.pages:
                 full_text += page.extract_text() or ""
-
         yield sse_event(
             "PDF Extraction", "done", elapsed_ms=int((time.time() - t0) * 1000)
         )
         await asyncio.sleep(0)
 
-        # ── Step 2: Text Chunking ─────────────────────────────────────────
+        # Step 2: Text Chunking
         yield sse_event("Text Chunking", "running")
         await asyncio.sleep(0)
-
         t0 = time.time()
         from langchain_text_splitters import RecursiveCharacterTextSplitter
-        from settings import Settings as S
 
         splitter = RecursiveCharacterTextSplitter(
-            chunk_size=S.CHUNK_SIZE,
-            chunk_overlap=S.CHUNK_OVERLAP,
+            chunk_size=Settings.CHUNK_SIZE,
+            chunk_overlap=Settings.CHUNK_OVERLAP,
         )
         chunks = splitter.split_text(full_text)
-
         yield sse_event(
             "Text Chunking",
             "done",
@@ -180,55 +163,41 @@ async def ingest_stream(file: UploadFile = File(...)):
         )
         await asyncio.sleep(0)
 
-        # ── Step 3: Embedding ─────────────────────────────────────────────
+        # Step 3: Embedding
         yield sse_event("Embedding", "running")
         await asyncio.sleep(0)
-
         t0 = time.time()
         from langchain_openai import OpenAIEmbeddings
-        from settings import Settings as S
 
-        embedder = OpenAIEmbeddings(model=S.EMBEDDING_MODEL)
+        embedder = OpenAIEmbeddings(model=Settings.EMBEDDING_MODEL)
         vectors = embedder.embed_documents(chunks)
-
         yield sse_event("Embedding", "done", elapsed_ms=int((time.time() - t0) * 1000))
         await asyncio.sleep(0)
 
-        # ── Step 4: Storing in ChromaDB ───────────────────────────────────
-        yield sse_event("Storing in ChromaDB", "running")
-        await asyncio.sleep(0)
-
-        t0 = time.time()
-        from chromadb import PersistentClient
-        from settings import Settings as S
-
-        client = PersistentClient(path=S.CHROMA_PATH)
-        collection = client.get_or_create_collection(name=S.COLLECTION_NAME)
-
-        # Remove duplicates
-        existing = collection.get(where={"source": original_stem})
-        if existing["ids"]:
-            collection.delete(ids=existing["ids"])
-
-        collection.add(
-            documents=chunks,
-            embeddings=vectors,
-            ids=[f"{original_stem}_chunk_{i}" for i in range(len(chunks))],
-            metadatas=[
-                {"source": original_stem, "chunk_index": i} for i in range(len(chunks))
-            ],
+        # Step 4: Store — dynamic label based on VECTOR_DB
+        store_label = (
+            "Storing in Qdrant"
+            if Settings.VECTOR_DB == "qdrant"
+            else "Storing in ChromaDB"
         )
-        os.remove(tmp_path)
+        yield sse_event(store_label, "running")
+        await asyncio.sleep(0)
+        t0 = time.time()
 
+        if Settings.VECTOR_DB == "qdrant":
+            loader_agent._store_qdrant(original_stem, chunks, vectors)
+        else:
+            loader_agent._store_chroma(original_stem, chunks, vectors)
+
+        os.remove(tmp_path)
         yield sse_event(
-            "Storing in ChromaDB",
+            store_label,
             "done",
             elapsed_ms=int((time.time() - t0) * 1000),
             data={"document": original_stem, "chunks_stored": len(chunks)},
         )
         await asyncio.sleep(0)
 
-        # ── Pipeline complete ─────────────────────────────────────────────
         total_ms = int((time.time() - pipeline_start) * 1000)
         yield sse_event(
             "complete",

@@ -19,3 +19,7 @@ httpx
 fpdf2
 cohere==5.13.0
 reportlab
+qdrant-client
+ragas
+datasets
+langchain-chroma

@@ -115,7 +115,7 @@ Respond ONLY with a JSON object, no other text:
         try:
             response = self.llm.invoke(prompt)
             raw = response.content.strip()
-            print(f"[DEBUG faithfulness] raw response: {repr(raw)}")
+
             # Extract JSON
             start = raw.find("{")
             end = raw.rfind("}") + 1
@@ -126,9 +126,6 @@ Respond ONLY with a JSON object, no other text:
         except Exception as e:
             logger.warning(f"Faithfulness eval failed: {e}")
             # Also print raw response for debugging
-            print(
-                f"[DEBUG] Faithfulness raw response: {raw if 'raw' in dir() else 'no response'}"
-            )
         return 0.5  # neutral fallback
 
     # ── 3. Answer Relevancy ──────────────────────────────────────────────────

@@ -9,7 +9,7 @@ from chromadb import PersistentClient
 from pathlib import Path
 from settings import Settings
 
-API_BASE = "http://localhost:8000"
+API_BASE = os.getenv("API_BASE", "http://localhost:8000")
 
 st.set_page_config(
     page_title="FinLens · Document Intelligence",
@@ -104,23 +104,71 @@ st.markdown(
 @st.cache_data(ttl=10)
 def get_ingested_documents():
     try:
-        client = PersistentClient(path=Settings.CHROMA_PATH)
-        collection = client.get_or_create_collection(Settings.COLLECTION_NAME)
-        results = collection.get(include=["metadatas"])
-        docs = list({m["source"] for m in results["metadatas"] if m.get("source")})
-        return sorted(docs)
+        if Settings.VECTOR_DB == "qdrant":
+            from qdrant_client import QdrantClient
+
+            client = QdrantClient(
+                url=Settings.QDRANT_URL, api_key=Settings.QDRANT_API_KEY
+            )
+            results = client.scroll(
+                collection_name=Settings.COLLECTION_NAME,
+                limit=100,
+                with_payload=True,
+            )[0]
+            docs = list(
+                {r.payload.get("source") for r in results if r.payload.get("source")}
+            )
+            return sorted(docs)
+        else:
+            from chromadb import PersistentClient
+
+            client = PersistentClient(path=Settings.CHROMA_PATH)
+            collection = client.get_or_create_collection(Settings.COLLECTION_NAME)
+            results = collection.get(include=["metadatas"])
+            docs = list({m["source"] for m in results["metadatas"] if m.get("source")})
+            return sorted(docs)
     except Exception:
         return []
 
 
 def get_chunks_for_doc(doc_name: str):
     try:
-        client = PersistentClient(path=Settings.CHROMA_PATH)
-        collection = client.get_or_create_collection(Settings.COLLECTION_NAME)
-        results = collection.get(
-            where={"source": doc_name}, include=["documents", "metadatas"]
-        )
-        return list(zip(results["documents"], results["metadatas"]))
+        if Settings.VECTOR_DB == "qdrant":
+            from qdrant_client import QdrantClient
+            from qdrant_client.models import Filter, FieldCondition, MatchValue
+
+            client = QdrantClient(
+                url=Settings.QDRANT_URL, api_key=Settings.QDRANT_API_KEY
+            )
+            results = client.scroll(
+                collection_name=Settings.COLLECTION_NAME,
+                scroll_filter=Filter(
+                    must=[
+                        FieldCondition(key="source", match=MatchValue(value=doc_name))
+                    ]
+                ),
+                limit=50,
+                with_payload=True,
+            )[0]
+            return [
+                (
+                    r.payload.get("text", ""),
+                    {
+                        "source": r.payload.get("source", ""),
+                        "chunk_index": r.payload.get("chunk_index", 0),
+                    },
+                )
+                for r in results
+            ]
+        else:
+            from chromadb import PersistentClient
+
+            client = PersistentClient(path=Settings.CHROMA_PATH)
+            collection = client.get_or_create_collection(Settings.COLLECTION_NAME)
+            results = collection.get(
+                where={"source": doc_name}, include=["documents", "metadatas"]
+            )
+            return list(zip(results["documents"], results["metadatas"]))
     except Exception:
         return []
 
@@ -259,12 +307,12 @@ with col_left:
             '<span class="sec-label" style="margin-top:1rem;">Ingest Pipeline</span>',
             unsafe_allow_html=True,
         )
-        ingest_steps_def = [
-            "PDF Extraction",
-            "Text Chunking",
-            "Embedding",
-            "Storing in ChromaDB",
-        ]
+        store_label = (
+            "Storing in Qdrant"
+            if Settings.VECTOR_DB == "qdrant"
+            else "Storing in ChromaDB"
+        )
+        ingest_steps_def = ["PDF Extraction", "Text Chunking", "Embedding", store_label]
         ingest_state = {
             s: {"state": "waiting", "elapsed_ms": None} for s in ingest_steps_def
         }

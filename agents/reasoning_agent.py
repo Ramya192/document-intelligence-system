@@ -1,5 +1,4 @@
 import json
-from langchain_openai import data
 from pydantic import BaseModel, Field
 from typing import Optional
 from settings import Settings
