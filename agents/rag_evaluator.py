@@ -242,4 +242,4 @@ def get_evaluator():
     """
     if Settings.LLM_PROVIDER == "ollama":
         return CustomRAGEvaluator()
-    return None
+    return RAGASEvaluator()

@@ -1,6 +1,8 @@
 import json
 from pydantic import BaseModel, Field
 from typing import Optional
+
+from typer import prompt
 from settings import Settings
 
 
@@ -140,8 +142,13 @@ Write the "answer" as a human-readable sentence. Use ₹ symbol and readable dat
     def reason(self, query: str, chunks: list[dict]) -> ReasoningOutput:
         prompt = self._build_prompt(query, chunks)
         if Settings.LLM_PROVIDER == "ollama":
-            response = self.llm.invoke(prompt)
-            return self._parse_ollama_response(response.content)
+            output = self._parse_ollama_response(self.llm.invoke(prompt).content)
         else:
             structured_llm = self.llm.with_structured_output(ReasoningOutput)
-            return structured_llm.invoke(prompt)
+            output = structured_llm.invoke(prompt)
+
+        # Always recalculate total_amount from actual transactions
+        if output.transactions:
+            output.total_amount = sum(t.amount for t in output.transactions)
+
+        return output
