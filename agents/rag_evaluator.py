@@ -237,12 +237,12 @@ class RAGASEvaluator:
 # ══════════════════════════════════════════════════════════════════════════════
 # FACTORY — auto-switches based on Settings.LLM_PROVIDER
 # ══════════════════════════════════════════════════════════════════════════════
-def get_evaluator() -> CustomRAGEvaluator | RAGASEvaluator:
+def get_evaluator():
     """
-    Returns the appropriate evaluator based on LLM_PROVIDER setting.
-    - ollama  → CustomRAGEvaluator (local, no API cost)
-    - openai  → RAGASEvaluator (production, RAGAS library)
+    Returns evaluator based on LLM_PROVIDER.
+    - ollama  → CustomRAGEvaluator (local)
+    - openai  → None (skip evaluation on production to save memory)
     """
     if Settings.LLM_PROVIDER == "ollama":
         return CustomRAGEvaluator()
-    return RAGASEvaluator()
+    return None
