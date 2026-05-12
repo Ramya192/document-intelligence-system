@@ -19,9 +19,10 @@ A production-grade BFSI document intelligence platform that ingests bank stateme
 
 | Service | URL |
 |---------|-----|
-| Streamlit UI | _[Deploy link — coming soon]_ |
-| FastAPI Backend | _[Deploy link — coming soon]_ |
-| GitHub | [github.com/Ramya192/document_intelligence_system](https://github.com/Ramya192/document_intelligence_system) |
+| Frontend (Streamlit) | https://document-intelligence-system-projectb.streamlit.app |
+| Backend API (FastAPI) | https://ramya192-finlens-api.hf.space |
+| API Health Check | https://ramya192-finlens-api.hf.space/health |
+| API Docs | https://ramya192-finlens-api.hf.space/docs |
 
 ---
 
