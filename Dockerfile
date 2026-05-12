@@ -13,4 +13,4 @@ ENV HF_HUB_DISABLE_PROGRESS_BARS=1
 ENV TRANSFORMERS_OFFLINE=0
 ENV SENTENCE_TRANSFORMERS_HOME=/tmp/st_cache
 
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-7860}
