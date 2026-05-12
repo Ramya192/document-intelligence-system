@@ -312,6 +312,11 @@ with col_left:
             if Settings.VECTOR_DB == "qdrant"
             else "Storing in ChromaDB"
         )
+        store_label = (
+            "Storing in Qdrant"
+            if Settings.VECTOR_DB == "qdrant"
+            else "Storing in ChromaDB"
+        )
         ingest_steps_def = ["PDF Extraction", "Text Chunking", "Embedding", store_label]
         ingest_state = {
             s: {"state": "waiting", "elapsed_ms": None} for s in ingest_steps_def
